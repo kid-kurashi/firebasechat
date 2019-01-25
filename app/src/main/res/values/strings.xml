@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">FirebaseChat</string>
     <string name="title_activity_chatlist">ChatlistActivity</string>
+    <string name="client_id">568113650390-7qg0hp82tn9f4f9i2ed8lsn62qgu94qj.apps.googleusercontent.com</string>
 </resources>
