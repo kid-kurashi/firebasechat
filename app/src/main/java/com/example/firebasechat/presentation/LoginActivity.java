@@ -1,4 +1,4 @@
-package com.example.firebasechat;
+package com.example.firebasechat.presentation;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -8,6 +8,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
+import com.example.firebasechat.R;
+import com.example.firebasechat.presentation.contacts.ContactsActivity;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;

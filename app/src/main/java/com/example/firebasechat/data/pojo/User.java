@@ -1,4 +1,4 @@
-package com.example.firebasechat.pojo;
+package com.example.firebasechat.data.pojo;
 
 import java.util.ArrayList;
 import java.util.List;
