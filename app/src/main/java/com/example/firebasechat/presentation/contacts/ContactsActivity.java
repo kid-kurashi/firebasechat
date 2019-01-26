@@ -1,10 +1,8 @@
 package com.example.firebasechat.presentation.contacts;
 
-import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModelProviders;
 import android.databinding.DataBindingUtil;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
@@ -19,6 +17,7 @@ public class ContactsActivity extends AppCompatActivity implements View.OnClickL
 
     private ContactsViewModel viewModel;
     private ActivityContactsBinding binding;
+    private AddContactDialog addContactDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,6 +30,8 @@ public class ContactsActivity extends AppCompatActivity implements View.OnClickL
         getLifecycle().addObserver(viewModel);
         viewModel.isProgress.observe(this, aBoolean -> binding.setModel(viewModel));
 
+        addContactDialog = new AddContactDialog(this);
+        addContactDialog.setButtonCallback(text -> addContact());
     }
 
 
@@ -38,11 +39,21 @@ public class ContactsActivity extends AppCompatActivity implements View.OnClickL
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.fab: {
-                viewModel.addContact();
+                showDialog();
             }
             break;
             default:
                 break;
+        }
+    }
+
+    private void addContact() {
+        //TODO add contact
+    }
+
+    private void showDialog() {
+        if (!addContactDialog.isShowing()) {
+            addContactDialog.show();
         }
     }
 
@@ -60,10 +71,5 @@ public class ContactsActivity extends AppCompatActivity implements View.OnClickL
             finish();
         }
         return true;
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
     }
 }

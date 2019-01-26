@@ -61,8 +61,8 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
                 android:layout_margin="@dimen/fab_margin"
-                android:onClickListener="@{clickListener}"
-                app:srcCompat="@drawable/add" />
+                app:srcCompat="@drawable/add"
+                android:onClick="onClick"/>
 
         </android.support.design.widget.CoordinatorLayout>
     </android.support.constraint.ConstraintLayout>

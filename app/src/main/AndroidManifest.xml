@@ -14,10 +14,11 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
+        <activity android:name=".presentation.MainActivity"></activity>
         <activity
             android:name=".presentation.contacts.ContactsActivity"
             android:label="@string/title_activity_chatlist"
-            android:theme="@style/AppTheme.NoActionBar"></activity>
+            android:theme="@style/AppTheme.NoActionBar" />
         <activity android:name=".ChatActivity" />
         <activity android:name=".presentation.LoginActivity">
             <intent-filter>
