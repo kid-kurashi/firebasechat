@@ -3,6 +3,7 @@ package com.example.firebasechat;
 import android.content.Intent;
 import android.util.Log;
 
+import com.example.firebasechat.presentation.chats.chat.ChatActivity;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 

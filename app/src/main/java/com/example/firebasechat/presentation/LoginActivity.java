@@ -9,6 +9,7 @@ import android.view.View;
 import android.widget.Toast;
 
 import com.example.firebasechat.R;
+import com.example.firebasechat.presentation.chats.ChatsActivity;
 import com.example.firebasechat.presentation.contacts.ContactsActivity;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -41,7 +42,7 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
+        setTitle("Sign in");
         content = findViewById(R.id.content);
         findViewById(R.id.sign_in_button).setOnClickListener(v -> signInWithGoogle());
 
@@ -84,7 +85,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void goNext() {
-        startActivity(new Intent(this, ContactsActivity.class));
+        startActivity(new Intent(this, ChatsActivity.class));
         finish();
     }
 

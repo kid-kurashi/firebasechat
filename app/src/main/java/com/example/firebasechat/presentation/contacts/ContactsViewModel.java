@@ -1,39 +1,26 @@
 package com.example.firebasechat.presentation.contacts;
 
 import android.arch.lifecycle.Lifecycle;
-import android.arch.lifecycle.LifecycleObserver;
 import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.OnLifecycleEvent;
-import android.arch.lifecycle.ViewModel;
 
 import com.example.firebasechat.data.pojo.User;
 import com.example.firebasechat.firestore_constants.Users;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
+import com.example.firebasechat.presentation.base.BaseViewModel;
 import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.iid.FirebaseInstanceId;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class ContactsViewModel extends ViewModel implements LifecycleObserver {
+public class ContactsViewModel extends BaseViewModel {
 
     public MutableLiveData<Boolean> isProgress = new MutableLiveData<>();
-    public MutableLiveData<ArrayList<String>> listContacts;
+    public MutableLiveData<List<String>> listContacts = new MutableLiveData<>();
 
     private String pushToken;
-    private FirebaseAuth firebaseAuth;
-    private FirebaseUser firebaseUser;
-    private FirebaseFirestore database;
-
-    @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
-    public void initServices() {
-        firebaseAuth = FirebaseAuth.getInstance();
-        firebaseUser = firebaseAuth.getCurrentUser();
-        database = FirebaseFirestore.getInstance();
-    }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     public void connectToFirestore() {
@@ -43,7 +30,7 @@ public class ContactsViewModel extends ViewModel implements LifecycleObserver {
                 pushToken = task.getResult().getToken();
                 DocumentReference userReference = getCurrentUserReference();
                 userReference.addSnapshotListener((documentSnapshot, e) -> {
-                    if(e != null){
+                    if (e != null) {
                         e.printStackTrace();
                         return;
                     }
@@ -58,20 +45,20 @@ public class ContactsViewModel extends ViewModel implements LifecycleObserver {
         });
     }
 
-//    @OnLifecycleEvent(Lifecycle.Event.ON_START)
-//    public void getContacts() {
-//        isProgress.postValue(true);
-//        getCurrentUserReference().addSnapshotListener((document, e) -> {
-//            if(e != null){
-//                e.printStackTrace();
-//                return;
-//            }
-//            if(document != null) {
-//                listContacts.postValue((ArrayList<String>)document.getData().get(Users.FIELD_CONTACTS));
-//                isProgress.postValue(false);
-//            }
-//        });
-//    }
+    @OnLifecycleEvent(Lifecycle.Event.ON_START)
+    public void getContacts() {
+        isProgress.postValue(true);
+        getCurrentUserReference().addSnapshotListener((documentSnapshot, e) -> {
+            if (e != null) {
+                e.printStackTrace();
+                return;
+            }
+            if (documentSnapshot != null) {
+                listContacts.postValue(((List<String>) documentSnapshot.get(Users.FIELD_CONTACTS)));
+                isProgress.postValue(false);
+            }
+        });
+    }
 
     private void createNewUser() {
         User user = new User(
@@ -87,11 +74,19 @@ public class ContactsViewModel extends ViewModel implements LifecycleObserver {
         userReference.update(updateTokenMap);
     }
 
-    private DocumentReference getCurrentUserReference() {
-        return database.collection(Users.COLLECTION_PATH).document(firebaseUser.getUid());
-    }
-
-    public void addContact() {
-
+    public void addContact(String contact, AddContactDialog addContactDialog) {
+        HashMap<String, Object> user = new HashMap<>();
+        getCurrentUserReference().get().addOnCompleteListener(task -> {
+            DocumentSnapshot snapshot = task.getResult();
+            if (snapshot != null) {
+                ArrayList<String> contacts = ((ArrayList<String>) snapshot.get(Users.FIELD_CONTACTS));
+                if (contacts != null) {
+                    contacts.add(contact);
+                    user.put(Users.FIELD_CONTACTS, contacts);
+                    getCurrentUserReference().update(user);
+                    addContactDialog.dismiss();
+                }
+            }
+        });
     }
 }

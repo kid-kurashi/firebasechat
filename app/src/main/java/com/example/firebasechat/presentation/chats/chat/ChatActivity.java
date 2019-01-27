@@ -1,4 +1,4 @@
-package com.example.firebasechat;
+package com.example.firebasechat.presentation.chats.chat;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -7,6 +7,8 @@ import android.content.IntentFilter;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+
+import com.example.firebasechat.R;
 
 public class ChatActivity extends AppCompatActivity {
 

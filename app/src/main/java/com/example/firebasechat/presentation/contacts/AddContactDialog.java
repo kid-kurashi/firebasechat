@@ -28,7 +28,6 @@ public class AddContactDialog extends AlertDialog {
     private TextInputEditText inputEditText;
     private Button addButton;
 
-    private boolean progress = false;
     private BehaviorSubject<String> inputBehavior = BehaviorSubject.create();
     private Disposable behaviorDisposable;
     private FirebaseFirestore database;

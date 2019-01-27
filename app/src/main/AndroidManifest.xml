@@ -14,13 +14,17 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
-        <activity android:name=".presentation.MainActivity"></activity>
+        <activity
+            android:name=".presentation.chats.ChatsActivity"
+            android:label="@string/title_chats"
+            android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".presentation.contacts.ContactsActivity"
-            android:label="@string/title_activity_chatlist"
-            android:theme="@style/AppTheme.NoActionBar" />
-        <activity android:name=".ChatActivity" />
-        <activity android:name=".presentation.LoginActivity">
+            android:label="@string/title_contacts" />
+        <activity android:name=".presentation.chats.chat.ChatActivity" />
+        <activity
+            android:name=".presentation.LoginActivity"
+            android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

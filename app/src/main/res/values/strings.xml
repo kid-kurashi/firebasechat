@@ -7,4 +7,7 @@
     <string name="user_found">User found</string>
     <string name="user_not_found">User not found</string>
     <string name="channel_id">58205837</string>
+    <string name="title_contacts">Contacts</string>
+    <string name="title_sign_in">Sign In</string>
+    <string name="title_chats">Chats</string>
 </resources>
