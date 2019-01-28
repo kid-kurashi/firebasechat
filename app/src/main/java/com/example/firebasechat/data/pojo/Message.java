@@ -8,9 +8,9 @@ public class Message {
     private String messageOwner;
     private long messageTime;
 
-    public Message(String messageText, String messageUser) {
+    public Message(String messageText, String messageOwner) {
         this.messageText = messageText;
-        this.messageOwner = messageUser;
+        this.messageOwner = messageOwner;
 
         // Initialize to current time
         messageTime = new Date().getTime();

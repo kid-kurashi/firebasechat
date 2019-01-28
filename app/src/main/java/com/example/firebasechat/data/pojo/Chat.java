@@ -8,14 +8,14 @@ public class Chat {
     private List<Message> messages;
     private String chatId;
 
-    public Chat(List<String> members) {
-        this.members = members;
-    }
-
     public Chat(List<String> members, List<Message> messages, String chatId) {
         this.members = members;
         this.messages = messages;
         this.chatId = chatId;
+    }
+
+    public Chat(List<String> members) {
+        this.members = members;
     }
 
     public Chat() {

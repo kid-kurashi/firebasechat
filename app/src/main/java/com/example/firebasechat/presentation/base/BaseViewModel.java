@@ -1,10 +1,14 @@
 package com.example.firebasechat.presentation.base;
 
+import android.app.Application;
+import android.arch.lifecycle.AndroidViewModel;
 import android.arch.lifecycle.Lifecycle;
 import android.arch.lifecycle.LifecycleObserver;
 import android.arch.lifecycle.OnLifecycleEvent;
 import android.arch.lifecycle.ViewModel;
+import android.support.annotation.NonNull;
 
+import com.example.firebasechat.App;
 import com.example.firebasechat.firestore_constants.Users;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
