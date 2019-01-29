@@ -28,18 +28,27 @@
             android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
             android:visibility="@{safeUnbox(model.isProgress) ? View.VISIBLE : View.GONE}"
-            app:layout_constraintBottom_toBottomOf="@+id/coordinatorLayout"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <android.support.design.widget.CoordinatorLayout
-            android:id="@+id/coordinatorLayout"
+        <FrameLayout
+            android:id="@+id/content"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:visibility="@{safeUnbox(model.isProgress) ? View.GONE : View.VISIBLE}">
+            android:visibility="@{safeUnbox(model.isProgress) ? View.GONE : View.VISIBLE}"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" >
 
-            <include layout="@layout/content_contacts" />
+            <android.support.v7.widget.RecyclerView
+                android:id="@+id/contacts_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+            </android.support.v7.widget.RecyclerView>
 
             <android.support.design.widget.FloatingActionButton
                 android:id="@+id/fab_add_contact"
@@ -47,9 +56,8 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
                 android:layout_margin="@dimen/fab_margin"
-                app:srcCompat="@drawable/add"
-                android:onClick="onClick"/>
+                app:srcCompat="@drawable/add" />
 
-        </android.support.design.widget.CoordinatorLayout>
+        </FrameLayout>
     </android.support.constraint.ConstraintLayout>
 </layout>

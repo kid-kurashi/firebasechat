@@ -10,27 +10,26 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.widget.Button;
 
+import com.example.firebasechat.App;
 import com.example.firebasechat.R;
-import com.example.firebasechat.firestore_constants.Users;
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.example.firebasechat.data.FirebaseRepository;
 
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.BehaviorSubject;
 
 public class AddContactDialog extends AlertDialog {
 
+    private FirebaseRepository firebaseRepository;
     private TextInputLayout inputLayout;
     private TextInputEditText inputEditText;
     private Button addButton;
 
     private BehaviorSubject<String> inputBehavior = BehaviorSubject.create();
     private Disposable behaviorDisposable;
-    private FirebaseFirestore database;
     private AddButtonCallback callback;
 
     protected AddContactDialog(@NonNull Context context) {
@@ -38,66 +37,9 @@ public class AddContactDialog extends AlertDialog {
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-        inputEditText.setText("");
-        isEmptyField();
-        behaviorDisposable = inputBehavior
-                .subscribeOn(AndroidSchedulers.mainThread())
-                .observeOn(AndroidSchedulers.mainThread())
-                .debounce(1000, TimeUnit.MILLISECONDS)
-                .subscribe(text -> {
-                    if (!text.isEmpty()) {
-                        database.collection(Users.COLLECTION_PATH)
-                                .whereEqualTo(Users.FIELD_LOGIN, text)
-                                .get().addOnSuccessListener(snapshots -> {
-                            if (snapshots != null && !snapshots.isEmpty())
-                                for (DocumentSnapshot snapshot : snapshots) {
-                                    if (snapshot.get(Users.FIELD_LOGIN) != null
-                                            && Objects.equals(snapshot.get(Users.FIELD_LOGIN), text))
-                                        userFound();
-                                }
-                            else
-                                userNotFound();
-                        });
-                    } else
-                        isEmptyField();
-                });
-
-        inputEditText.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (!s.toString().isEmpty()) {
-                    search();
-                }
-                inputBehavior.onNext(s.toString());
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-
-            }
-        });
-    }
-
-    @Override
-    protected void onStop() {
-        if (behaviorDisposable != null && !behaviorDisposable.isDisposed())
-            behaviorDisposable.dispose();
-        super.onStop();
-    }
-
-    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.add_contact_layout);
-
-        database = FirebaseFirestore.getInstance();
 
         addButton = findViewById(R.id.add_contact_button);
         inputLayout = findViewById(R.id.add_contact_layout);
@@ -109,36 +51,85 @@ public class AddContactDialog extends AlertDialog {
                 callback.onClick(inputEditText.getText().toString());
             }
         });
+
+        isEmptyField();
+        inputEditText.setText("");
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        inputEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (s != null && !s.toString().isEmpty()) {
+                    search();
+                    inputBehavior.onNext(s.toString());
+                } else
+                    isEmptyField();
+            }
+        });
+
+        behaviorDisposable = inputBehavior
+                .subscribeOn(AndroidSchedulers.mainThread())
+                .observeOn(Schedulers.io())
+                .debounce(1000, TimeUnit.MILLISECONDS)
+                .map(text -> firebaseRepository
+                        .findUserByEmail(text)
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(this::isUserFound, this::onErrorReceived)
+                ).subscribe();
+    }
+
+    @Override
+    protected void onStop() {
+        if (behaviorDisposable != null && !behaviorDisposable.isDisposed())
+            behaviorDisposable.dispose();
+        super.onStop();
+    }
+
+    private void onErrorReceived(Throwable throwable) {
+        throwable.printStackTrace();
+    }
+
+    private void isUserFound(Boolean isFound) {
+        if (isFound)
+            userFound();
+        else
+            userNotFound();
     }
 
     private void search() {
-        AndroidSchedulers.mainThread().scheduleDirect(() -> {
-            isEmptyField();
-            addButton.setEnabled(false);
-        });
+        isEmptyField();
+        addButton.setEnabled(false);
     }
 
     private void isEmptyField() {
-        AndroidSchedulers.mainThread().scheduleDirect(() -> {
-            addButton.setEnabled(false);
-            inputLayout.setErrorEnabled(false);
-        });
+        addButton.setEnabled(false);
+        inputLayout.setErrorEnabled(false);
     }
 
     private void userNotFound() {
-        AndroidSchedulers.mainThread().scheduleDirect(() -> {
-            addButton.setEnabled(false);
-            inputLayout.setErrorTextAppearance(R.style.ErrorTextRed);
-            inputLayout.setError(getContext().getString(R.string.user_not_found));
-        });
+        addButton.setEnabled(false);
+        inputLayout.setErrorTextAppearance(R.style.ErrorTextRed);
+        inputLayout.setError(getContext().getString(R.string.user_not_found));
     }
 
     private void userFound() {
-        AndroidSchedulers.mainThread().scheduleDirect(() -> {
-            addButton.setEnabled(true);
-            inputLayout.setErrorTextAppearance(R.style.ErrorTextGreen);
-            inputLayout.setError(getContext().getString(R.string.user_found));
-        });
+        addButton.setEnabled(true);
+        inputLayout.setErrorTextAppearance(R.style.ErrorTextGreen);
+        inputLayout.setError(getContext().getString(R.string.user_found));
     }
 
     public void setButtonCallback(AddButtonCallback callback) {

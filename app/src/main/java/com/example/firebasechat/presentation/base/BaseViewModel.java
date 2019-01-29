@@ -1,34 +1,19 @@
 package com.example.firebasechat.presentation.base;
 
-import android.app.Application;
-import android.arch.lifecycle.AndroidViewModel;
-import android.arch.lifecycle.Lifecycle;
 import android.arch.lifecycle.LifecycleObserver;
-import android.arch.lifecycle.OnLifecycleEvent;
 import android.arch.lifecycle.ViewModel;
-import android.support.annotation.NonNull;
 
-import com.example.firebasechat.App;
-import com.example.firebasechat.firestore_constants.Users;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.example.firebasechat.data.FirebaseRepository;
 
 public class BaseViewModel extends ViewModel implements LifecycleObserver {
 
-    protected FirebaseAuth firebaseAuth;
-    protected FirebaseUser firebaseUser;
-    protected FirebaseFirestore database;
+    protected FirebaseRepository firebaseRepository;
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
-    public void initServices() {
-        firebaseAuth = FirebaseAuth.getInstance();
-        firebaseUser = firebaseAuth.getCurrentUser();
-        database = FirebaseFirestore.getInstance();
+    public BaseViewModel(FirebaseRepository firebaseRepository) {
+        this.firebaseRepository = firebaseRepository;
     }
 
-    protected DocumentReference getCurrentUserReference() {
-        return database.collection(Users.COLLECTION_PATH).document(firebaseUser.getUid());
+    protected void onErrorReceived(Throwable throwable) {
+        throwable.printStackTrace();
     }
 }

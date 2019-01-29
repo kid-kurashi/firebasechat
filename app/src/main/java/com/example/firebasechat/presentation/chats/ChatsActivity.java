@@ -1,7 +1,6 @@
 package com.example.firebasechat.presentation.chats;
 
 import android.arch.lifecycle.ViewModelProviders;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.databinding.DataBindingUtil;
 import android.os.Bundle;
@@ -13,7 +12,6 @@ import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.ArraySet;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -22,6 +20,7 @@ import com.example.firebasechat.App;
 import com.example.firebasechat.R;
 import com.example.firebasechat.databinding.ActivityChatsBinding;
 import com.example.firebasechat.firestore_constants.Chats;
+import com.example.firebasechat.presentation.base.ModelFactory;
 import com.example.firebasechat.presentation.chats.chat.ChatActivity;
 import com.example.firebasechat.presentation.contacts.ContactsActivity;
 import com.google.firebase.auth.FirebaseAuth;
@@ -43,7 +42,6 @@ public class ChatsActivity extends AppCompatActivity implements View.OnClickList
     private PrimaryDrawerItem item1;
     private RecyclerView recyclerView;
     private ChatsAdapter adapter;
-    private SwipeRefreshLayout mSwipeRefreshLayout;
     private App app;
 
     @Override
@@ -54,12 +52,12 @@ public class ChatsActivity extends AppCompatActivity implements View.OnClickList
         binding = DataBindingUtil.setContentView(this, R.layout.activity_chats);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        viewModel = ViewModelProviders.of(this).get(ChatsViewModel.class);
+        viewModel = ViewModelProviders.of(this, new ModelFactory(app)).get(ChatsViewModel.class);
         getLifecycle().addObserver(viewModel);
 
         viewModel.isProgress.observe(this, progress -> {
             binding.setModel(viewModel);
-            mSwipeRefreshLayout.setRefreshing(progress);
+            binding.chatsSwipeRefresh.setRefreshing(progress);
         });
 
         recyclerView = findViewById(R.id.chats_recycler_view);
@@ -77,13 +75,10 @@ public class ChatsActivity extends AppCompatActivity implements View.OnClickList
             diffResult.dispatchUpdatesTo(adapter);
         });
 
-        viewModel.chatCreated.observe(this, chatId -> new Handler().post(()-> openChatScreen(chatId)));
+        viewModel.chatCreated.observe(this, chatId -> new Handler().post(() -> openChatScreen(chatId)));
 
-        mSwipeRefreshLayout = findViewById(R.id.chats_swipe_refresh);
-        mSwipeRefreshLayout.setOnRefreshListener(this);
-
-
-        mSwipeRefreshLayout.setColorSchemeResources(R.color.colorPrimary,
+        binding.chatsSwipeRefresh.setOnRefreshListener(this);
+        binding.chatsSwipeRefresh.setColorSchemeResources(R.color.colorPrimary,
                 android.R.color.holo_green_light,
                 android.R.color.holo_orange_light,
                 android.R.color.holo_red_light);
@@ -155,8 +150,9 @@ public class ChatsActivity extends AppCompatActivity implements View.OnClickList
         CharSequence[] contacts = new CharSequence[app.getSharedPreferecesManager().readContacts().size()];
 
         int i = 0;
-        for(String contact: app.getSharedPreferecesManager().readContacts()){
-            contacts[i] = contact; i++;
+        for (String contact : app.getSharedPreferecesManager().readContacts()) {
+            contacts[i] = contact;
+            i++;
         }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);

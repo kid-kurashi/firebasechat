@@ -4,103 +4,97 @@ import android.arch.lifecycle.Lifecycle;
 import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.OnLifecycleEvent;
 
+import com.example.firebasechat.data.FirebaseRepository;
 import com.example.firebasechat.data.SharedPreferecesManager;
-import com.example.firebasechat.data.pojo.User;
-import com.example.firebasechat.firestore_constants.Users;
 import com.example.firebasechat.presentation.base.BaseViewModel;
-import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.iid.FirebaseInstanceId;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
 public class ContactsViewModel extends BaseViewModel {
 
+    private final SharedPreferecesManager sharedPreferecesManager;
     public MutableLiveData<Boolean> isProgress = new MutableLiveData<>();
     public MutableLiveData<List<String>> listContacts = new MutableLiveData<>();
+    public MutableLiveData<Boolean> dismissDialog = new MutableLiveData<>();
 
-    private String pushToken;
-    private final SharedPreferecesManager sharedPreferecesManager;
+    private Disposable connectToFirebaseDisposable;
+    private Disposable getContactsDisposable;
+    private Disposable addContactDisposable;
 
-    public ContactsViewModel(SharedPreferecesManager sharedPreferecesManager) {
+    public ContactsViewModel(FirebaseRepository repository, SharedPreferecesManager sharedPreferecesManager) {
+        super(repository);
         this.sharedPreferecesManager = sharedPreferecesManager;
     }
 
+
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     public void connectToFirestore() {
+        dismissDialog.postValue(false);
         isProgress.postValue(true);
-        FirebaseInstanceId.getInstance().getInstanceId().addOnCompleteListener(task -> {
-            if (task.isSuccessful() && task.getResult() != null) {
-                pushToken = task.getResult().getToken();
-                DocumentReference userReference = getCurrentUserReference();
-                userReference.addSnapshotListener((documentSnapshot, e) -> {
-                    if (e != null) {
-                        e.printStackTrace();
-                        return;
-                    }
-                    if (documentSnapshot != null && documentSnapshot.get(Users.FIELD_DEVICE_TOKEN) != null) {
-                        updateDeviceToken(userReference);
-                    } else {
-                        createNewUser();
-                    }
-                    isProgress.postValue(false);
-                });
-            }
-        });
+        connectToFirebaseDisposable = firebaseRepository
+                .connectToFirestore()
+                .subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.io())
+                .subscribe(this::onFirestoreConnected, this::onErrorReceived);
+    }
+
+    @Override
+    protected void onErrorReceived(Throwable throwable) {
+        super.onErrorReceived(throwable);
+
+    }
+
+    private void onFirestoreConnected(Boolean aBoolean) {
+        isProgress.postValue(!aBoolean);
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     public void getContacts() {
         isProgress.postValue(true);
-        getCurrentUserReference().addSnapshotListener((documentSnapshot, e) -> {
-            if (e != null) {
-                e.printStackTrace();
-                return;
-            }
-            if (documentSnapshot != null) {
-                HashSet<String> contactsSet = new HashSet<>();
-
-                List<String> contactsList = (List<String>) documentSnapshot.get(Users.FIELD_CONTACTS);
-                for (String contact : contactsList) {
-                    contactsSet.add(contact);
-                }
-                sharedPreferecesManager.writeContacts(contactsSet);
-                listContacts.postValue(contactsList);
-                isProgress.postValue(false);
-            }
-        });
+        getContactsDisposable = firebaseRepository
+                .getUserContacts()
+                .subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.io())
+                .subscribe(this::onContactsReceived, this::onErrorReceived);
     }
 
-    private void createNewUser() {
-        User user = new User(
-                firebaseUser.getDisplayName(),
-                firebaseUser.getUid(),
-                pushToken, firebaseUser.getEmail());
-        getCurrentUserReference().set(user);
+    private void onContactsReceived(List<String> strings) {
+        listContacts.postValue(strings);
+        isProgress.postValue(false);
     }
 
-    private void updateDeviceToken(DocumentReference userReference) {
-        HashMap<String, Object> updateTokenMap = new HashMap<>();
-        updateTokenMap.put(Users.FIELD_DEVICE_TOKEN, pushToken);
-        userReference.update(updateTokenMap);
+    public void addContact(String contact) {
+        addContactDisposable = firebaseRepository
+                .addContact(contact)
+                .subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.io())
+                .subscribe(this::onContactAdd, this::onErrorReceived);
     }
 
-    public void addContact(String contact, AddContactDialog addContactDialog) {
-        HashMap<String, Object> user = new HashMap<>();
-        getCurrentUserReference().get().addOnCompleteListener(task -> {
-            DocumentSnapshot snapshot = task.getResult();
-            if (snapshot != null) {
-                ArrayList<String> contacts = ((ArrayList<String>) snapshot.get(Users.FIELD_CONTACTS));
-                if (contacts != null) {
-                    contacts.add(contact);
-                    user.put(Users.FIELD_CONTACTS, contacts);
-                    getCurrentUserReference().update(user);
-                    addContactDialog.dismiss();
-                }
-            }
-        });
+    private void onContactAdd(Boolean isAdd) {
+        dismissDialog.postValue(isAdd);
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+    public void destroySubscribers() {
+        if (connectToFirebaseDisposable != null && !connectToFirebaseDisposable.isDisposed()) {
+            connectToFirebaseDisposable.dispose();
+        }
+        if (getContactsDisposable != null && !getContactsDisposable.isDisposed()) {
+            getContactsDisposable.dispose();
+        }
+        if (addContactDisposable != null && !addContactDisposable.isDisposed()) {
+            addContactDisposable.dispose();
+        }
+    }
+
+    public void writeContacts(List<String> contacts) {
+        Set<String> contactsSet = new HashSet<>(contacts);
+        sharedPreferecesManager.writeContacts(contactsSet);
     }
 }
