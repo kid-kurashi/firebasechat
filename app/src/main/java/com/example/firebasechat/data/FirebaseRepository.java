@@ -12,7 +12,9 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.iid.FirebaseInstanceId;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -33,6 +35,7 @@ public class FirebaseRepository {
     private ReplaySubject<List<String>> getContactsObservable = ReplaySubject.create();
     private ReplaySubject<Boolean> addContactObservable = ReplaySubject.create();
     private ReplaySubject<Boolean> findUserByEmailObservable = ReplaySubject.create();
+    private ReplaySubject<ArrayList<HashMap<String, String>>> chatMessagesObservable = ReplaySubject.create();
 
     public FirebaseRepository(FirebaseAuth firebaseAuth, FirebaseFirestore database) {
         this.firebaseAuth = firebaseAuth;
@@ -62,9 +65,11 @@ public class FirebaseRepository {
             database.collection(Chats.COLLECTION_PATH)
                     .whereArrayContains(Chats.FIELD_MEMBERS, email)
                     .get()
-                    .addOnSuccessListener(snapshots -> {
-                        if (snapshots != null && !snapshots.isEmpty())
-                            userChatsObservable.onNext(snapshots.getDocuments());
+                    .addOnSuccessListener(snapshot -> {
+                        if (snapshot != null && !snapshot.getDocuments().isEmpty())
+                            userChatsObservable.onNext(snapshot.getDocuments());
+                        else
+                            userChatsObservable.onNext(new ArrayList<>());
                     })
                     .addOnFailureListener(e -> userChatsObservable.onError(e));
         } else {
@@ -74,6 +79,7 @@ public class FirebaseRepository {
     }
 
     public Observable<String> createNewChat(List<String> chatMembers) {
+        chatMembers.add(firebaseUser.getEmail());
         DocumentReference chatDocument = database.collection(Chats.COLLECTION_PATH).document();
         String chatId = chatDocument.getId();
         chatDocument
@@ -127,9 +133,9 @@ public class FirebaseRepository {
                 getContactsObservable.onError(e);
             } else {
                 List<String> contacts = (List<String>) documentSnapshot.get(Users.FIELD_CONTACTS);
-                if(contacts != null) {
+                if (contacts != null) {
                     getContactsObservable.onNext(contacts);
-                }else{
+                } else {
                     getContactsObservable.onNext(new ArrayList<>());
                 }
             }
@@ -154,20 +160,71 @@ public class FirebaseRepository {
     }
 
     public Observable<Boolean> findUserByEmail(String text) {
-        database.collection(Users.COLLECTION_PATH)
-                .whereEqualTo(Users.FIELD_LOGIN, text)
-                .get()
-                .addOnSuccessListener(snapshot -> {
-                    if (snapshot != null && !snapshot.isEmpty()) {
-                        for (DocumentSnapshot snap : snapshot.getDocuments()) {
-                            if (snap.get(Users.FIELD_LOGIN) != null
-                                    && Objects.equals(snap.get(Users.FIELD_LOGIN), text))
-                                findUserByEmailObservable.onNext(true);
+        if (text != null && !text.isEmpty())
+            database.collection(Users.COLLECTION_PATH)
+                    .whereEqualTo(Users.FIELD_LOGIN, text)
+                    .get()
+                    .addOnSuccessListener(snapshot -> {
+                        if (snapshot != null && !snapshot.getDocuments().isEmpty()) {
+                            for (DocumentSnapshot snap : snapshot.getDocuments()) {
+                                if (snap.get(Users.FIELD_LOGIN) != null && Objects.equals(snap.get(Users.FIELD_LOGIN), text))
+                                    findUserByEmailObservable.onNext(true);
+                            }
+                        } else {
+                            findUserByEmailObservable.onNext(false);
+                        }
+                    })
+                    .addOnFailureListener(e -> findUserByEmailObservable.onError(e));
+        return findUserByEmailObservable;
+    }
+
+    public Observable<ArrayList<HashMap<String, String>>> getMessages(String chatId) {
+        database.collection(Chats.COLLECTION_PATH)
+                .document(chatId)
+                .addSnapshotListener((documentSnapshot, e) -> {
+                    if (e != null)
+                        chatMessagesObservable.onError(e);
+                    else {
+                        ArrayList<HashMap<String, Object>> receivedMessages = (ArrayList<HashMap<String, Object>>) documentSnapshot.get(Chats.FIELD_MESSAGES);
+                        if (receivedMessages != null) {
+                            ArrayList<HashMap<String, String>> messages = new ArrayList<>();
+                            for (int i = 0; i < receivedMessages.size(); i++) {
+                                LinkedHashMap<String, String> newObject = new LinkedHashMap<>();
+                                newObject.put(Chats.FIELD_MESSAGE_TEXT, (String) receivedMessages.get(i).get(Chats.FIELD_MESSAGE_TEXT));
+                                newObject.put(Chats.FIELD_MESSAGE_TIME, (String) receivedMessages.get(i).get(Chats.FIELD_MESSAGE_TIME));
+                                newObject.put(Chats.FIELD_MESSAGE_OWNER, (String) receivedMessages.get(i).get(Chats.FIELD_MESSAGE_OWNER));
+//                                newObject.put(Chats.FIELD_MESSAGE_TEXT, "LOL");
+//                                newObject.put(Chats.FIELD_MESSAGE_TIME, "LOL");
+//                                newObject.put(Chats.FIELD_MESSAGE_OWNER, "LOL");
+                                messages.add(newObject);
+                            }
+                            chatMessagesObservable.onNext(messages);
                         }
                     }
-                    findUserByEmailObservable.onNext(false);
-                })
-                .addOnFailureListener(e -> findUserByEmailObservable.onError(e));
-        return findUserByEmailObservable;
+                });
+        return chatMessagesObservable;
+    }
+
+    public String getUserEmail() {
+        return firebaseUser.getEmail();
+    }
+
+    public void sendMessage(String text, String chatId) {
+        database.collection(Chats.COLLECTION_PATH)
+                .document(chatId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    ArrayList<HashMap<String, String>> messages = (ArrayList<HashMap<String, String>>) documentSnapshot.get(Chats.FIELD_MESSAGES);
+
+                    HashMap<String, String> message = new HashMap<>();
+                    message.put(Chats.FIELD_MESSAGE_TEXT, text);
+                    message.put(Chats.FIELD_MESSAGE_OWNER, firebaseUser.getEmail());
+                    message.put(Chats.FIELD_MESSAGE_TIME, String.valueOf(new Date().getTime()));
+
+                    messages.add(message);
+                    database.collection(Chats.COLLECTION_PATH)
+                            .document(chatId)
+                            .update(Chats.FIELD_MESSAGES, messages);
+                });
     }
 }

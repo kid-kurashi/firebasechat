@@ -1,6 +1,7 @@
 package com.example.firebasechat.presentation.chats;
 
 import android.support.annotation.NonNull;
+import android.support.constraint.ConstraintLayout;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -59,7 +60,7 @@ public class ChatsAdapter extends RecyclerView.Adapter<ChatsAdapter.ViewHolder> 
         private final TextView chatTitle;
         private final TextView lastMessage;
         private final RoundedImageView chatLogo;
-        private final FrameLayout root;
+        private final ConstraintLayout root;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -73,7 +74,7 @@ public class ChatsAdapter extends RecyclerView.Adapter<ChatsAdapter.ViewHolder> 
             chatTitle.setText(chat.get(Chats.FIELD_MEMBERS).toString());
             List<Map<String, Object>> messages = (List<Map<String, Object>>) chat.get(Chats.FIELD_MESSAGES);
             if(messages.size() > 0) {
-                lastMessage.setText(((String) messages.get(messages.size() - 1).get(Chats.FIELD_MESSAGE)));
+                lastMessage.setText(((String) messages.get(messages.size() - 1).get(Chats.FIELD_MESSAGE_TEXT)));
             }
 
             root.setOnClickListener(v -> onClickCallback.onClick((String) chat.get(Chats.FIELD_CHAT_ID)));

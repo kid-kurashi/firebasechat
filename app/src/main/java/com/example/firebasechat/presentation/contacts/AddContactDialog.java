@@ -10,14 +10,15 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.widget.Button;
 
-import com.example.firebasechat.App;
 import com.example.firebasechat.R;
 import com.example.firebasechat.data.FirebaseRepository;
 
 import java.util.concurrent.TimeUnit;
 
+import io.reactivex.ObservableSource;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.BehaviorSubject;
 
@@ -52,13 +53,6 @@ public class AddContactDialog extends AlertDialog {
             }
         });
 
-        isEmptyField();
-        inputEditText.setText("");
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
         inputEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -67,25 +61,29 @@ public class AddContactDialog extends AlertDialog {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
+                search();
                 if (s != null && !s.toString().isEmpty()) {
-                    search();
                     inputBehavior.onNext(s.toString());
                 } else
                     isEmptyField();
             }
-        });
 
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        inputEditText.setText("");
+        inputEditText.setSelection(0,0);
         behaviorDisposable = inputBehavior
-                .subscribeOn(AndroidSchedulers.mainThread())
-                .observeOn(Schedulers.io())
                 .debounce(1000, TimeUnit.MILLISECONDS)
                 .map(text -> firebaseRepository
                         .findUserByEmail(text)
+                        .debounce(500, TimeUnit.MILLISECONDS)
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(this::isUserFound, this::onErrorReceived)
@@ -104,10 +102,11 @@ public class AddContactDialog extends AlertDialog {
     }
 
     private void isUserFound(Boolean isFound) {
-        if (isFound)
-            userFound();
-        else
-            userNotFound();
+        if (inputEditText.getText() != null && !inputEditText.getText().toString().isEmpty())
+            if (isFound)
+                userFound();
+            else
+                userNotFound();
     }
 
     private void search() {
@@ -134,6 +133,10 @@ public class AddContactDialog extends AlertDialog {
 
     public void setButtonCallback(AddButtonCallback callback) {
         this.callback = callback;
+    }
+
+    public void setRepository(FirebaseRepository firebaseRepository) {
+        this.firebaseRepository = firebaseRepository;
     }
 
     public interface AddButtonCallback {

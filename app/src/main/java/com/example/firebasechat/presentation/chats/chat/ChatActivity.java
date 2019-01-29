@@ -1,29 +1,67 @@
 package com.example.firebasechat.presentation.chats.chat;
 
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.app.AppCompatActivity;
+import android.databinding.DataBindingUtil;
 import android.os.Bundle;
+import android.support.v4.content.LocalBroadcastManager;
+import android.support.v4.widget.SwipeRefreshLayout;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.util.DiffUtil;
+import android.support.v7.widget.LinearLayoutManager;
 import android.view.MenuItem;
 
+import com.example.firebasechat.App;
 import com.example.firebasechat.R;
+import com.example.firebasechat.databinding.ActivityChatBinding;
+import com.example.firebasechat.firestore_constants.Chats;
+import com.example.firebasechat.presentation.base.ModelFactory;
 
-public class ChatActivity extends AppCompatActivity {
+import java.util.ArrayList;
+import java.util.HashMap;
+
+public class ChatActivity extends AppCompatActivity implements SwipeRefreshLayout.OnRefreshListener {
 
     private BroadcastReceiver bReceiver;
     public static final String RECEIVE_MESSAGE = "com.example.firebasechat.RECEIVE_MESSAGE";
     private LocalBroadcastManager bManager;
 
+    private ActivityChatBinding binding;
+    private ChatViewModel viewModel;
+    private App app;
+    private ChatAdapter chatAdapter;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_chat);
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        bReceiver = new BroadcastReceiver(){
+        app = (App) getApplication();
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_chat);
+        viewModel = ViewModelProviders.of(this, new ModelFactory(app)).get(ChatViewModel.class);
+        getLifecycle().addObserver(viewModel);
+        viewModel.setChatId(getIntent().getStringExtra(Chats.FIELD_CHAT_ID));
+
+
+        binding.chatRecycler.setHasFixedSize(true);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
+        binding.chatRecycler.setLayoutManager(layoutManager);
+        chatAdapter = new ChatAdapter(viewModel.getOwner());
+        binding.chatRecycler.setAdapter(chatAdapter);
+
+        binding.chatRefresh.setOnRefreshListener(this);
+        binding.chatRefresh.setColorSchemeResources(R.color.colorPrimary,
+                android.R.color.holo_green_light,
+                android.R.color.holo_orange_light,
+                android.R.color.holo_red_light);
+
+        viewModel.isProgress.observe(this, this::toggleProgress);
+
+
+        bReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if ((intent != null)
@@ -38,6 +76,32 @@ public class ChatActivity extends AppCompatActivity {
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(RECEIVE_MESSAGE);
         bManager.registerReceiver(bReceiver, intentFilter);
+
+        binding.sendButton.setOnClickListener(v -> {
+            viewModel.sendMessage(binding.inputMessage.getText().toString());
+            binding.inputMessage.setText("");
+        });
+
+        viewModel.messages.observe(this, this::updateMessages);
+
+    }
+
+    private void toggleProgress(Boolean isProgress) {
+        binding.chatRefresh.setRefreshing(isProgress);
+    }
+
+    private void updateMessages(ArrayList<HashMap<String, String>> messages) {
+        MessagesDiffUtilCallback messagesDiffUtilCallback =
+                new MessagesDiffUtilCallback(chatAdapter.getItems(), messages);
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(messagesDiffUtilCallback);
+
+        chatAdapter.setItems(messages);
+        diffResult.dispatchUpdatesTo(chatAdapter);
+        binding.chatRecycler.post(() -> {
+            // Call smooth scroll
+            if (chatAdapter.getItemCount() > 0 )
+                binding.chatRecycler.smoothScrollToPosition(chatAdapter.getItemCount() - 1);
+        });
     }
 
     private void onReceivedNewIntent(Intent intent) {
@@ -46,10 +110,15 @@ public class ChatActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if(item.getItemId() == android.R.id.home) {
+        if (item.getItemId() == android.R.id.home) {
             onBackPressed();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onRefresh() {
+        viewModel.loadMessages();
     }
 }

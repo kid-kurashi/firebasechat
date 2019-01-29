@@ -7,6 +7,7 @@ import android.support.annotation.NonNull;
 import com.example.firebasechat.App;
 import com.example.firebasechat.data.FirebaseRepository;
 import com.example.firebasechat.presentation.chats.ChatsViewModel;
+import com.example.firebasechat.presentation.chats.chat.ChatViewModel;
 import com.example.firebasechat.presentation.contacts.ContactsViewModel;
 
 public class ModelFactory extends ViewModelProvider.NewInstanceFactory {
@@ -27,6 +28,9 @@ public class ModelFactory extends ViewModelProvider.NewInstanceFactory {
         }
         if (modelClass == ChatsViewModel.class) {
             return (T) new ChatsViewModel(repository);
+        }
+        if (modelClass == ChatViewModel.class) {
+            return (T) new ChatViewModel(repository);
         }
         return null;
     }

@@ -34,7 +34,9 @@ public class ContactsActivity extends AppCompatActivity {
         getLifecycle().addObserver(viewModel);
 
         addContactDialog = new AddContactDialog(this);
+        addContactDialog.setTitle(getString(R.string.add_user_title));
         addContactDialog.setButtonCallback(text -> viewModel.addContact(text));
+        addContactDialog.setRepository(app.getFirebaseRepository());
         binding.fabAddContact.setOnClickListener(v -> showDialog());
 
         viewModel.isProgress.observe(this, progress -> binding.setModel(viewModel));

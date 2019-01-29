@@ -40,7 +40,6 @@ public class ChatsActivity extends AppCompatActivity implements View.OnClickList
     private Drawer drawer;
     public static final int CONTACTS_ID = 100;
     private PrimaryDrawerItem item1;
-    private RecyclerView recyclerView;
     private ChatsAdapter adapter;
     private App app;
 
@@ -60,13 +59,12 @@ public class ChatsActivity extends AppCompatActivity implements View.OnClickList
             binding.chatsSwipeRefresh.setRefreshing(progress);
         });
 
-        recyclerView = findViewById(R.id.chats_recycler_view);
-        recyclerView.setHasFixedSize(true);
+        binding.chatsRecyclerView.setHasFixedSize(true);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
-        recyclerView.setLayoutManager(layoutManager);
+        binding.chatsRecyclerView.setLayoutManager(layoutManager);
         adapter = new ChatsAdapter();
         adapter.setOnClickCallback(this::openChatScreen);
-        recyclerView.setAdapter(adapter);
+        binding.chatsRecyclerView.setAdapter(adapter);
         viewModel.chats.observe(this, chats -> {
             ChatsDiffUtilCallback chatsDiffUtilCallback =
                     new ChatsDiffUtilCallback(adapter.getItems(), chats);
