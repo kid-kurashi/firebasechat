@@ -3,40 +3,98 @@ package com.example.firebasechat.presentation.contacts;
 import android.arch.lifecycle.ViewModelProviders;
 import android.databinding.DataBindingUtil;
 import android.os.Bundle;
+import android.support.design.widget.TextInputEditText;
+import android.support.design.widget.TextInputLayout;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 
 import com.example.firebasechat.App;
 import com.example.firebasechat.R;
+import com.example.firebasechat.data.FirebaseRepository;
 import com.example.firebasechat.databinding.ActivityContactsBinding;
 import com.example.firebasechat.presentation.base.ModelFactory;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.BehaviorSubject;
 
 public class ContactsActivity extends AppCompatActivity {
 
     private ContactsViewModel viewModel;
     private ActivityContactsBinding binding;
-    private AddContactDialog addContactDialog;
     private ContactsAdapter adapter;
     private App app;
+
+    private FirebaseRepository firebaseRepository;
+
+    private AlertDialog dialogFromBuilder;
+    private View dialogView;
+    private TextInputLayout layout;
+    private EditText editText;
+    private Button button;
+    private Disposable behaviorDisposable;
+    private BehaviorSubject<String> inputBehavior = BehaviorSubject.create();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         app = ((App) getApplication());
+        firebaseRepository = app.getFirebaseRepository();
+
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         binding = DataBindingUtil.setContentView(this, R.layout.activity_contacts);
         viewModel = ViewModelProviders.of(this, new ModelFactory(app)).get(ContactsViewModel.class);
         getLifecycle().addObserver(viewModel);
 
-        addContactDialog = new AddContactDialog(this);
-        addContactDialog.setTitle(getString(R.string.add_user_title));
-        addContactDialog.setButtonCallback(text -> viewModel.addContact(text));
-        addContactDialog.setRepository(app.getFirebaseRepository());
+        dialogView = getLayoutInflater().inflate(R.layout.add_contact_layout, null);
+        layout = dialogView.findViewById(R.id.add_contact_layout);
+        editText = dialogView.findViewById(R.id.add_contact_edit_text);
+        button = dialogView.findViewById(R.id.add_contact_button);
+
+        editText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                search();
+                if (s != null && !s.toString().isEmpty()) {
+                    inputBehavior.onNext(s.toString());
+                } else
+                    isEmptyField();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+        button.setOnClickListener(v -> {
+            if (editText.getText() != null && !editText.getText().toString().isEmpty()) {
+                viewModel.addContact(editText.getText().toString());
+                dialogFromBuilder.dismiss();
+            }
+        });
+
+        dialogFromBuilder = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setTitle(R.string.add_user_title)
+                .create();
+
         binding.fabAddContact.setOnClickListener(v -> showDialog());
 
         viewModel.isProgress.observe(this, progress -> binding.setModel(viewModel));
@@ -66,14 +124,14 @@ public class ContactsActivity extends AppCompatActivity {
     }
 
     private void showDialog() {
-        if (!addContactDialog.isShowing()) {
-            addContactDialog.show();
+        if (!dialogFromBuilder.isShowing()) {
+            dialogFromBuilder.show();
         }
     }
 
     private void closeDialog() {
-        if (addContactDialog.isShowing()) {
-            addContactDialog.dismiss();
+        if (dialogFromBuilder.isShowing()) {
+            dialogFromBuilder.dismiss();
         }
     }
 
@@ -84,5 +142,63 @@ public class ContactsActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        editText.setText("");
+        button.setEnabled(false);
+        behaviorDisposable = inputBehavior
+                .debounce(1000, TimeUnit.MILLISECONDS)
+                .map(text -> firebaseRepository
+                        .findUserByEmail(text)
+                        .debounce(500, TimeUnit.MILLISECONDS)
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(this::isUserFound, this::onErrorReceived)
+                ).subscribe();
+    }
+
+    private void onErrorReceived(Throwable throwable) {
+        throwable.printStackTrace();
+    }
+
+    private void userNotFound() {
+        button.setEnabled(false);
+        layout.setErrorTextAppearance(R.style.ErrorTextRed);
+        layout.setError(getString(R.string.user_not_found));
+    }
+
+    private void userFound() {
+        button.setEnabled(true);
+        layout.setErrorTextAppearance(R.style.ErrorTextGreen);
+        layout.setError(getString(R.string.user_found));
+    }
+
+    private void isUserFound(Boolean isFound) {
+        if (editText.getText() != null && !editText.getText().toString().isEmpty())
+            if (isFound)
+                userFound();
+            else
+                userNotFound();
+    }
+
+    private void isEmptyField() {
+        button.setEnabled(false);
+        layout.setErrorEnabled(false);
+    }
+
+    private void search() {
+        isEmptyField();
+        button.setEnabled(false);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (behaviorDisposable != null && !behaviorDisposable.isDisposed()) {
+            behaviorDisposable.dispose();
+        }
     }
 }
