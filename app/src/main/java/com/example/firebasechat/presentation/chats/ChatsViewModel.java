@@ -20,7 +20,7 @@ import io.reactivex.schedulers.Schedulers;
 public class ChatsViewModel extends BaseViewModel {
 
     public MutableLiveData<Boolean> isProgress = new MutableLiveData<>();
-    public MutableLiveData<ArrayList<Map<String, Object>>> chats = new MutableLiveData<>();
+    public MutableLiveData<List<Map<String, Object>>> chats = new MutableLiveData<>();
     public MutableLiveData<String> chatCreated = new MutableLiveData<>();
 
     private Disposable loadChatsDisposable;
@@ -41,16 +41,8 @@ public class ChatsViewModel extends BaseViewModel {
                 .subscribe(this::onChatsLoaded, this::onErrorReceived);
     }
 
-    private void onChatsLoaded(List<DocumentSnapshot> documentSnapshots) {
-        ArrayList<Map<String, Object>> list = new ArrayList<>();
-        for (DocumentSnapshot snapshot : documentSnapshots) {
-            HashMap<String, Object> map = new HashMap<>();
-            map.put(Chats.FIELD_MEMBERS, snapshot.get(Chats.FIELD_MEMBERS));
-            map.put(Chats.FIELD_MESSAGES, snapshot.get(Chats.FIELD_MESSAGES));
-            map.put(Chats.FIELD_CHAT_ID, snapshot.get(Chats.FIELD_CHAT_ID));
-            list.add(map);
-        }
-        chats.postValue(list);
+    private void onChatsLoaded(List<Map<String, Object>> maps) {
+        chats.postValue(maps);
         isProgress.postValue(false);
     }
 

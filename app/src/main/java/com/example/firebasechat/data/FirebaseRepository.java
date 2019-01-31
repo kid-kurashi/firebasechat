@@ -16,6 +16,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import io.reactivex.Observable;
@@ -29,7 +30,7 @@ public class FirebaseRepository {
     private String deviceToken;
 
     private ReplaySubject<DocumentSnapshot> currentUserObservableDocument = ReplaySubject.create();
-    private ReplaySubject<List<DocumentSnapshot>> userChatsObservable = ReplaySubject.create();
+    private ReplaySubject<List<Map<String, Object>>> userChatsObservable = ReplaySubject.create();
     private ReplaySubject<String> createNewChatObservable = ReplaySubject.create();
     private ReplaySubject<Boolean> connectToFirestoreObservable = ReplaySubject.create();
     private ReplaySubject<List<String>> getContactsObservable = ReplaySubject.create();
@@ -58,7 +59,7 @@ public class FirebaseRepository {
         return currentUserObservableDocument;
     }
 
-    public Observable<List<DocumentSnapshot>> getUserChats() {
+    public Observable<List<Map<String, Object>>> getUserChats() {
         firebaseUser = firebaseAuth.getCurrentUser();
         if (firebaseUser != null && firebaseUser.getEmail() != null) {
             String email = firebaseUser.getEmail();
@@ -66,9 +67,17 @@ public class FirebaseRepository {
                     .whereArrayContains(Chats.FIELD_MEMBERS, email)
                     .get()
                     .addOnSuccessListener(snapshot -> {
-                        if (snapshot != null && !snapshot.getDocuments().isEmpty())
-                            userChatsObservable.onNext(snapshot.getDocuments());
-                        else
+                        if (snapshot != null && !snapshot.getDocuments().isEmpty()) {
+                            ArrayList<Map<String, Object>> list = new ArrayList<>();
+                            for (DocumentSnapshot item : snapshot.getDocuments()) {
+                                HashMap<String, Object> map = new HashMap<>();
+                                map.put(Chats.FIELD_MEMBERS, item.get(Chats.FIELD_MEMBERS));
+                                map.put(Chats.FIELD_MESSAGES, item.get(Chats.FIELD_MESSAGES));
+                                map.put(Chats.FIELD_CHAT_ID, item.get(Chats.FIELD_CHAT_ID));
+                                list.add(map);
+                            }
+                            userChatsObservable.onNext(list);
+                        } else
                             userChatsObservable.onNext(new ArrayList<>());
                     })
                     .addOnFailureListener(e -> userChatsObservable.onError(e));
@@ -132,11 +141,15 @@ public class FirebaseRepository {
             if (e != null) {
                 getContactsObservable.onError(e);
             } else {
-                List<String> contacts = (List<String>) documentSnapshot.get(Users.FIELD_CONTACTS);
-                if (contacts != null) {
-                    getContactsObservable.onNext(contacts);
-                } else {
-                    getContactsObservable.onNext(new ArrayList<>());
+                try {
+                    List<String> contacts = (List<String>) documentSnapshot.get(Users.FIELD_CONTACTS);
+                    if (contacts != null) {
+                        getContactsObservable.onNext(contacts);
+                    } else {
+                        getContactsObservable.onNext(new ArrayList<>());
+                    }
+                } catch (Exception e1) {
+                    getContactsObservable.onError(e1);
                 }
             }
         });
@@ -145,17 +158,23 @@ public class FirebaseRepository {
 
     public Observable<Boolean> addContact(String contact) {
         HashMap<String, Object> user = new HashMap<>();
-        getCurrentUserReference().get().addOnCompleteListener(task -> {
-            DocumentSnapshot snapshot = task.getResult();
-            if (snapshot != null) {
-                ArrayList<String> contacts = ((ArrayList<String>) snapshot.get(Users.FIELD_CONTACTS));
-                if (contacts != null) {
-                    contacts.add(contact);
-                    user.put(Users.FIELD_CONTACTS, contacts);
-                    getCurrentUserReference().update(user);
-                }
-            }
-        });
+        getCurrentUserReference()
+                .get()
+                .addOnCompleteListener(task -> {
+                    DocumentSnapshot snapshot = task.getResult();
+                    if (snapshot != null) {
+                        try {
+                            ArrayList<String> contacts = ((ArrayList<String>) snapshot.get(Users.FIELD_CONTACTS));
+                            if (contacts != null) {
+                                contacts.add(contact);
+                                user.put(Users.FIELD_CONTACTS, contacts);
+                                getCurrentUserReference().update(user);
+                            }
+                        } catch (Exception e) {
+                            addContactObservable.onError(e);
+                        }
+                    }
+                }).addOnFailureListener(e -> addContactObservable.onError(e));
         return addContactObservable;
     }
 
@@ -185,20 +204,22 @@ public class FirebaseRepository {
                     if (e != null)
                         chatMessagesObservable.onError(e);
                     else {
-                        ArrayList<HashMap<String, Object>> receivedMessages = (ArrayList<HashMap<String, Object>>) documentSnapshot.get(Chats.FIELD_MESSAGES);
-                        if (receivedMessages != null) {
-                            ArrayList<HashMap<String, String>> messages = new ArrayList<>();
-                            for (int i = 0; i < receivedMessages.size(); i++) {
-                                LinkedHashMap<String, String> newObject = new LinkedHashMap<>();
-                                newObject.put(Chats.FIELD_MESSAGE_TEXT, (String) receivedMessages.get(i).get(Chats.FIELD_MESSAGE_TEXT));
-                                newObject.put(Chats.FIELD_MESSAGE_TIME, (String) receivedMessages.get(i).get(Chats.FIELD_MESSAGE_TIME));
-                                newObject.put(Chats.FIELD_MESSAGE_OWNER, (String) receivedMessages.get(i).get(Chats.FIELD_MESSAGE_OWNER));
-//                                newObject.put(Chats.FIELD_MESSAGE_TEXT, "LOL");
-//                                newObject.put(Chats.FIELD_MESSAGE_TIME, "LOL");
-//                                newObject.put(Chats.FIELD_MESSAGE_OWNER, "LOL");
-                                messages.add(newObject);
+                        try {
+                            ArrayList<HashMap<String, Object>> receivedMessages =
+                                    (ArrayList<HashMap<String, Object>>) documentSnapshot.get(Chats.FIELD_MESSAGES);
+                            if (receivedMessages != null) {
+                                ArrayList<HashMap<String, String>> messages = new ArrayList<>();
+                                for (int i = 0; i < receivedMessages.size(); i++) {
+                                    LinkedHashMap<String, String> newObject = new LinkedHashMap<>();
+                                    newObject.put(Chats.FIELD_MESSAGE_TEXT, (String) receivedMessages.get(i).get(Chats.FIELD_MESSAGE_TEXT));
+                                    newObject.put(Chats.FIELD_MESSAGE_TIME, (String) receivedMessages.get(i).get(Chats.FIELD_MESSAGE_TIME));
+                                    newObject.put(Chats.FIELD_MESSAGE_OWNER, (String) receivedMessages.get(i).get(Chats.FIELD_MESSAGE_OWNER));
+                                    messages.add(newObject);
+                                }
+                                chatMessagesObservable.onNext(messages);
                             }
-                            chatMessagesObservable.onNext(messages);
+                        } catch (Exception e1) {
+                            chatMessagesObservable.onError(e1);
                         }
                     }
                 });
@@ -214,17 +235,21 @@ public class FirebaseRepository {
                 .document(chatId)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
-                    ArrayList<HashMap<String, String>> messages = (ArrayList<HashMap<String, String>>) documentSnapshot.get(Chats.FIELD_MESSAGES);
+                    try {
+                        ArrayList<HashMap<String, String>> messages =
+                                (ArrayList<HashMap<String, String>>) documentSnapshot.get(Chats.FIELD_MESSAGES);
+                        HashMap<String, String> message = new HashMap<>();
+                        message.put(Chats.FIELD_MESSAGE_TEXT, text);
+                        message.put(Chats.FIELD_MESSAGE_OWNER, firebaseUser.getEmail());
+                        message.put(Chats.FIELD_MESSAGE_TIME, String.valueOf(new Date().getTime()));
 
-                    HashMap<String, String> message = new HashMap<>();
-                    message.put(Chats.FIELD_MESSAGE_TEXT, text);
-                    message.put(Chats.FIELD_MESSAGE_OWNER, firebaseUser.getEmail());
-                    message.put(Chats.FIELD_MESSAGE_TIME, String.valueOf(new Date().getTime()));
-
-                    messages.add(message);
-                    database.collection(Chats.COLLECTION_PATH)
-                            .document(chatId)
-                            .update(Chats.FIELD_MESSAGES, messages);
+                        messages.add(message);
+                        database.collection(Chats.COLLECTION_PATH)
+                                .document(chatId)
+                                .update(Chats.FIELD_MESSAGES, messages);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 });
     }
 }
